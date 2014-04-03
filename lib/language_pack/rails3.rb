@@ -97,8 +97,7 @@ private
             cache.clear "public/assets"
           end
         else
-          log "assets_precompile", :status => "failure"
-          error "Precompiling assets failed."
+          precompile_fail(precompile.output)
         end
       end
     end
