@@ -86,9 +86,11 @@ private
             log("assets_clean_expired") do
               clean_expired_assets = system('RAILS_GROUPS=assets bundle exec rake assets:clean_expired')
               if clean_expired_assets
+                puts "Old assets expired, storing current assets in cache."
                 log "assets_clean_expired", :status => "success"
                 cache.store "public/assets"
               else
+                puts "Failed to clean old assets, clearing cache."
                 log "assets_clean_expired", :status => "failure"
                 cache.clear "public/assets"
               end
