@@ -84,8 +84,8 @@ private
           # cache assets if task was successful.
           if bundler.has_gem?('turbo-sprockets-rails3')
             log("assets_clean_expired") do
-              clean_expired_assets = system('RAILS_GROUPS=assets bundle exec rake assets:clean_expired')
-              if clean_expired_assets
+              ( clean_expired_assets = rake.task("assets:clean_expired") ).invoke(env: rake_env)
+              if clean_expired_assets.success?
                 puts "Old assets expired, storing current assets in cache."
                 log "assets_clean_expired", :status => "success"
                 cache.store "public/assets"
