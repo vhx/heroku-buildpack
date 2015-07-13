@@ -101,7 +101,7 @@ private
           clean.invoke(env: rake_env)
           if clean.success?
             log "assets_clean_expired", :status => "success"
-            puts "Cleared expired assets (#{".2f" % clean.time}s)"
+            puts "Cleared expired assets (#{"%.2f" % clean.time}s)"
             @cache.store 'public/assets'
           else
             log "assets_clean_expired", :status => "failure"
