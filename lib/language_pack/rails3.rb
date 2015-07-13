@@ -57,11 +57,6 @@ private
 
   # runs the tasks for the Rails 3.1 asset pipeline
   def run_assets_precompile_rake_task
-    ENV["RAILS_GROUPS"] ||= "assets"
-    ENV["RAILS_ENV"]    ||= "production"
-
-    setup_database_url_env
-
     instrument "rails3.run_assets_precompile_rake_task" do
       log("assets_precompile") do
         if File.exists?("public/assets/manifest.yml")
@@ -89,7 +84,7 @@ private
         puts "Running: rake assets:precompile"
         require 'benchmark'
 
-        precompile.invoke
+        precompile.invoke(env: rake_env)
         if precompile.success?
           log "assets_precompile", :status => "success"
           puts "Asset precompilation completed (#{"%.2f" % precompile.time}s)"
@@ -106,7 +101,7 @@ private
           clean = rake.task("assets:clean_expired")
           return true unless clean.is_defined?
 
-          clean.invoke
+          clean.invoke(env: rake_env)
           if clean.success?
             log "assets_clean_expired", :status => "success"
             puts "Cleared expired assets (#{".2f" % clean.time}s)"
