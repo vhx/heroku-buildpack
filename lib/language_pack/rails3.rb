@@ -100,20 +100,21 @@ private
       end
     end
 
-  if bundler.has_gem?('turbo-sprockets-rails3')
-    instrument "rails3.run_assets_clean_expired_rake_task" do
-      log("assets_clean_expired") do
-        clean = rake.task("assets:clean_expired")
-        return true unless clean.is_defined?
+    if bundler.has_gem?('turbo-sprockets-rails3')
+      instrument "rails3.run_assets_clean_expired_rake_task" do
+        log("assets_clean_expired") do
+          clean = rake.task("assets:clean_expired")
+          return true unless clean.is_defined?
 
-        clean.invoke
-        if clean.success?
-          log "assets_clean_expired", :status => "success"
-          puts "Cleared expired assets (#{".2f" % clean.time}s)"
-          @cache.store 'public/assets'
-        else
-          log "assets_clean_expired", :status => "failure"
-          error "Clearing expired assets failed."
+          clean.invoke
+          if clean.success?
+            log "assets_clean_expired", :status => "success"
+            puts "Cleared expired assets (#{".2f" % clean.time}s)"
+            @cache.store 'public/assets'
+          else
+            log "assets_clean_expired", :status => "failure"
+            error "Clearing expired assets failed."
+          end
         end
       end
     end
