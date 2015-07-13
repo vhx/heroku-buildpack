@@ -81,16 +81,13 @@ private
           end
         end
 
-        puts "Running: rake assets:precompile"
-        require 'benchmark'
-
         precompile.invoke(env: rake_env)
+
         if precompile.success?
           log "assets_precompile", :status => "success"
           puts "Asset precompilation completed (#{"%.2f" % precompile.time}s)"
         else
-          log "assets_precompile", :status => "failure"
-          error "Precompiling assets failed."
+          precompile_fail(precompile.output)
         end
       end
     end
