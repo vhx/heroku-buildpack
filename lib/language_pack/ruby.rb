@@ -93,6 +93,7 @@ class LanguagePack::Ruby < LanguagePack::Base
         post_bundler
         create_database_yml
         install_binaries
+        run_geoip_data_update_rake_task
         run_assets_precompile_rake_task
       end
       super
@@ -755,6 +756,20 @@ params = CGI.parse(uri.query || "")
         puts "Asset precompilation completed (#{"%.2f" % precompile.time}s)"
       else
         precompile_fail(precompile.output)
+      end
+    end
+  end
+
+  def run_geoip_data_update_rake_task
+    instrument 'ruby.run_geoip_data_update_rake_task' do
+      if rake_task_defined?("geo_ip_updater:update_geo_ip_data")
+        require 'benchmark'
+
+        topic "Running: rake geo_ip_updater:update_geo_ip_data"
+        time = Benchmark.realtime { pipe("env PATH=$PATH:bin bundle exec rake geo_ip_updater:update_geo_ip_data 2>&1") }
+        if $?.success?
+          puts "GeoIP data update completed (#{"%.2f" % time}s)"
+        end
       end
     end
   end
