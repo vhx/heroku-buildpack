@@ -94,6 +94,7 @@ class LanguagePack::Ruby < LanguagePack::Base
         create_database_yml
         install_binaries
         run_geoip_data_update_rake_task
+        run_db_migrate_rake_task
         run_assets_precompile_rake_task
       end
       super
@@ -769,6 +770,25 @@ params = CGI.parse(uri.query || "")
         time = Benchmark.realtime { pipe("env PATH=$PATH:bin bundle exec rake geo_ip_updater:update_geo_ip_data 2>&1") }
         if $?.success?
           puts "GeoIP data update completed (#{"%.2f" % time}s)"
+        end
+      end
+    end
+  end
+
+  def run_db_migrate_rake_task
+    instrument 'ruby.run_db_migrate_rake_task' do
+      if rake_task_defined?("db:migrate")
+        require 'benchmark'
+
+        if ENV['DATABASE_URL'].nil?
+          puts "Skipping database migration since DATABASE_URL is not defined."
+          return
+        end
+
+        topic "Running: rake db:migrate"
+        time = Benchmark.realtime { pipe("env PATH=$PATH:bin bundle exec rake db:migrate 2>&1") }
+        if $?.success?
+          puts "Database migration completed (#{"%.2f" % time}s)"
         end
       end
     end
