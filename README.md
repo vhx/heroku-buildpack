@@ -2,6 +2,14 @@
 
 This is a [Heroku Buildpack](http://devcenter.heroku.com/articles/buildpacks) for Ruby, Rack, and Rails apps. It uses [Bundler](http://gembundler.com) for dependency management.
 
+Note: this custom buildpack requires the user-env-compile feature to be enabled:
+
+`heroku labs:enable user-env-compile`
+
+This buildpack runs custom rake tasks (i.e. update GeoIP data) on deployment.
+
+It also runs the standard database migration (i.e. rake db:migrate).
+
 ## Usage
 
 ### Ruby
