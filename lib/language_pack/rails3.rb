@@ -81,7 +81,7 @@ private
           end
         end
 
-        precompile.invoke(env: rake_env)
+        precompile.invoke
 
         if precompile.success?
           log "assets_precompile", :status => "success"
