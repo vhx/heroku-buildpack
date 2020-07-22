@@ -186,6 +186,18 @@ WARNING
 
         topic("Preparing app for Rails asset pipeline")
 
+        if bundler.has_gem?('turbo-sprockets-rails3')
+          log('clear_assets_cache') do
+            puts "turbo-sprockets-rails3 detected, loading cached assets"
+            @cache.load 'public/assets'
+
+            # If it's not a turbo-sprockets version that is cached, clean it.
+            if !File.exists?('public/assets/sources_manifest.yml')
+              FileUtils.rm_rf 'public/assets'
+            end
+          end
+        end
+
         precompile.invoke(env: rake_env)
 
         if precompile.success?
@@ -193,6 +205,25 @@ WARNING
           puts "Asset precompilation completed (#{"%.2f" % precompile.time}s)"
         else
           precompile_fail(precompile.output)
+        end
+      end
+    end
+
+    if bundler.has_gem?('turbo-sprockets-rails3')
+      instrument "rails3.run_assets_clean_expired_rake_task" do
+        log("assets_clean_expired") do
+          clean = rake.task("assets:clean_expired")
+          return true unless clean.is_defined?
+
+          clean.invoke(env: rake_env)
+          if clean.success?
+            log "assets_clean_expired", :status => "success"
+            puts "Cleared expired assets (#{"%.2f" % clean.time}s)"
+            @cache.store 'public/assets'
+          else
+            log "assets_clean_expired", :status => "failure"
+            error "Clearing expired assets failed."
+          end
         end
       end
     end
