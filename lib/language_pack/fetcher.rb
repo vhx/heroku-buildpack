@@ -14,6 +14,13 @@ module LanguagePack
       @host_url += File.basename(stack) if stack
     end
 
+    def exists?(path, max_attempts = 1)
+      curl = curl_command("-I #{@host_url.join(path)}")
+      run!(curl, error_class: FetchError, max_attempts: max_attempts, silent: true)
+    rescue FetchError
+      false
+    end
+
     def fetch(path)
       curl = curl_command("-O #{@host_url.join(path)}")
       run!(curl, error_class: FetchError)
@@ -21,7 +28,9 @@ module LanguagePack
 
     def fetch_untar(path, files_to_extract = nil)
       curl = curl_command("#{@host_url.join(path)} -s -o")
-      run!("#{curl} - | tar zxf - #{files_to_extract}", error_class: FetchError)
+      run! "#{curl} - | tar zxf - #{files_to_extract}",
+        error_class: FetchError,
+        max_attempts: 3
     end
 
     def fetch_bunzip2(path, files_to_extract = nil)
@@ -35,11 +44,11 @@ module LanguagePack
     end
 
     def curl_timeout_in_seconds
-      ENV['CURL_TIMEOUT'] || 30
+      env('CURL_TIMEOUT') || 30
     end
 
     def curl_connect_timeout_in_seconds
-      ENV['CURL_CONNECT_TIMEOUT'] || 3
+      env('CURL_CONNECT_TIMEOUT') || 3
     end
 
     def load_config

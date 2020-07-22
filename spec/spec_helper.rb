@@ -4,10 +4,11 @@ require 'fileutils'
 require 'hatchet'
 require 'rspec/retry'
 require 'language_pack'
-
-require 'language_pack'
+require 'language_pack/shell_helpers'
 
 ENV['RACK_ENV'] = 'test'
+
+DEFAULT_STACK = 'heroku-18'
 
 RSpec.configure do |config|
   config.filter_run focused: true unless ENV['IS_RUNNING_ON_CI']
@@ -18,18 +19,17 @@ RSpec.configure do |config|
   config.default_retry_count = 2 if ENV['IS_RUNNING_ON_CI'] # retry all tests that fail again
 
   config.expect_with :rspec do |c|
+    c.max_formatted_output_length = Float::INFINITY
     c.syntax = :expect
   end
   config.mock_with :nothing
-end
-
-def git_repo
-  "https://github.com/heroku/heroku-buildpack-ruby.git"
+  config.include LanguagePack::ShellHelpers
 end
 
 def successful_body(app, options = {})
   retry_limit = options[:retry_limit] || 50
-  Excon.get("http://#{app.name}.herokuapp.com", :idempotent => true, :expects => 200, :retry_limit => retry_limit).body
+  url = "http://#{app.name}.herokuapp.com"
+  Excon.get(url, :idempotent => true, :expects => 200, :retry_limit => retry_limit).body
 end
 
 def create_file_with_size_in(size, dir)
@@ -38,10 +38,38 @@ def create_file_with_size_in(size, dir)
   Pathname.new name
 end
 
+if ENV['TRAVIS']
+  # Don't execute tests against "merge" commits
+  exit 0 if ENV['TRAVIS_PULL_REQUEST'] != 'false' && ENV['TRAVIS_BRANCH'] == 'master'
+end
 
-ReplRunner.register_commands(:console)  do |config|
-  config.terminate_command "exit"          # the command you use to end the 'rails console'
-  config.startup_timeout 60                # seconds to boot
-  config.return_char "\n"                  # the character that submits the command
-  config.sync_stdout "STDOUT.sync = true"  # force REPL to not buffer standard out
+def buildpack_path
+  File.expand_path(File.join("../.."), __FILE__)
+end
+
+def fixture_path(path)
+  Pathname.new(__FILE__).join("../fixtures").expand_path.join(path)
+end
+
+def hatchet_path(path = "")
+  Pathname.new(__FILE__).join("../../repos").expand_path.join(path)
+end
+
+def dyno_status(app, ps_name = "web")
+  app
+    .api_rate_limit.call
+    .dyno
+    .list(app.name)
+    .detect {|x| x["type"] == ps_name }
+end
+
+def wait_for_dyno_boot(app, ps_name = "web", sleep_val = 1)
+  while ["starting", "restarting"].include?(dyno_status(app, ps_name)["state"])
+    sleep sleep_val
+  end
+  dyno_status(app, ps_name)
+end
+
+def web_boot_status(app)
+  wait_for_dyno_boot(app)["state"]
 end

@@ -16,30 +16,43 @@ class LanguagePack::Rails2 < LanguagePack::Ruby
     end
   end
 
+  def initialize(*args)
+    super(*args)
+    @rails_runner = LanguagePack::Helpers::RailsRunner.new
+  end
+
   def name
     "Ruby/Rails"
   end
 
+  def default_env_vars
+    {
+      "RAILS_ENV" => "production",
+      "RACK_ENV" => "production"
+    }
+  end
+
   def default_config_vars
     instrument "rails2.default_config_vars" do
-      super.merge({
-        "RAILS_ENV" => env("RAILS_ENV") || "production",
-        "RACK_ENV"  => env("RACK_ENV")  || "production",
-      })
+      config_vars = super
+      default_env_vars.map do |key, value|
+        config_vars[key] = env(key) || value
+      end
+      config_vars
     end
   end
 
   def default_process_types
     instrument "rails2.default_process_types" do
       web_process = bundler.has_gem?("thin") ?
-        "bundle exec thin start -e $RAILS_ENV -p $PORT" :
-        "bundle exec ruby script/server -p $PORT"
+        "bundle exec thin start -e $RAILS_ENV -p ${PORT:-5000}" :
+        "bundle exec ruby script/server -p ${PORT:-5000}"
 
-      super.merge({
-        "web" => web_process,
-        "worker" => "bundle exec rake jobs:work",
-        "console" => "bundle exec script/console"
-      })
+      process_types = super
+      process_types["web"]     = web_process
+      process_types["worker"]  = "bundle exec rake jobs:work" if has_jobs_work_task?
+      process_types["console"] = "bundle exec script/console"
+      process_types
     end
   end
 
@@ -50,10 +63,17 @@ class LanguagePack::Rails2 < LanguagePack::Ruby
     end
   end
 
+  def build
+    # TODO install plugins into separate layer
+    install_plugins
+    super
+  end
+
   def best_practice_warnings
     if env("RAILS_ENV") != "production"
       warn(<<-WARNING)
 You are deploying to a non-production environment: #{ env("RAILS_ENV").inspect }.
+This is not recommended.
 See https://devcenter.heroku.com/articles/deploying-to-a-custom-rails-environment for more information.
 WARNING
     end
@@ -61,6 +81,14 @@ WARNING
   end
 
 private
+  def has_jobs_work_task?
+    if result = rake.task("jobs:work").is_defined?
+      mcount("task.jobs:work.enabled")
+    else
+      mcount("task.jobs:work.disabled")
+    end
+    result
+  end
 
   def install_plugins
     instrument "rails2.install_plugins" do
@@ -70,17 +98,12 @@ private
     end
   end
 
-  # most rails apps need a database
-  # @return [Array] shared database addon
-  def add_dev_database_addon
-    ['heroku-postgresql']
-  end
-
   # sets up the profile.d script for this buildpack
-  def setup_profiled
-    super
-    set_env_default "RACK_ENV",  "production"
-    set_env_default "RAILS_ENV", "production"
+  def setup_profiled(*args)
+    super(*args)
+    default_env_vars.each do |key, value|
+      set_env_default key, value
+    end
   end
 
 end
